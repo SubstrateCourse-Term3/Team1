@@ -14,7 +14,7 @@
 	如果N大于64则，N=64，全部继承到新生猫的DNA[0..N]
 
 ##### 基因突变部分
-	剩下M=128-64位
+	剩下M=128-N位
 	payload = sender_addr + transaction_index + kitties_count + timestamp + current_height
 	first_M_bytes(hash(payload))继承到新生猫的DNA[N..128]
 
