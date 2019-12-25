@@ -1,1 +1,32 @@
+1 数据结构
+struct Kitty {//定义猫猫，记录猫序号和dna,拥有者id
+	Catid: u64,
+	DNA: [u8;16], 
+  Owner:u64,
+}
+
+2 存储定义
+Kittys : map u64=>Kitty 所有的猫
+KittiesCount : u64  总共多少只猫
+ownerKitties : map AccountID=>u64 该用户拥有的猫 
+ownerKittiescount : map AccountID=>u64 该用户拥有的猫的数量
+
+
+3 可调用函数
+createKitty() 生成新猫
+GiveBirthtoKitty(catid1, catid2) 繁育猫猫
+TransferKitty(AccountID newOwner, int No.) 猫的所有权转移
+
+
+
+
+4 算法伪代码
+  DNA生成
+  payload=sender_addr+transaction_index
+  //将地址和区块排序生成种子
+  for i in 1..50
+   payload+=block_hash...
+  循环近50个区块将payload组合，hash后提取头部用以dna信息
+
+
 
