@@ -1,1 +1,41 @@
 
+kitty V2
+
+**1 数据结构,kitties_count溢出问题
+struct Kitty {//定义猫猫，记录猫序号和dna,拥有者id
+	Catid: u128,
+*catid2:u128,//默认为0，catid溢出后catid2++，catid重置为0
+	DNA:,//另行叙述 
+  Owner:u128,
+  ...父代catid，catid2
+  ...父代catid，catid2
+}
+
+                      2 存储定义
+                      KittiesCount : u128 u128 总共多少只猫(返回catid和catid2)
+                      ownerKitties : map AccountID=>u128 该用户拥有的猫 
+                      ownerKittiescount : map AccountID=>u128 该用户拥有的猫的数量
+
+
+                      3 可调用函数
+                      createKitty() 生成新猫-结合4里面的DNA生成
+                      TransferKitty(AccountID newOwner, int No.) 猫的所有权转移
+                      *GiveBirthtoKitty(catid1, catid2) 繁育猫猫
+
+                      4 算法伪代码
+
+                        DNA生成
+                        payload=sender_addr+transaction_indexpa
+                        //将地址和区块排序生成种子
+                        for i in 1..50
+                         payload+=block_hash...
+                        循环近50个区块将payload组合，hash后提取头部用以dna信息
+	 
+ **DNA继承
+ 1.父母继承
+ 将父代猫1猫2的128dna按位进行随机获取,
+ 如11111111...
+   00000000...
+ 可获取到0101010..（01的随机组合）
+2. 同样的父母生出来的小猫不能相同 即基因突变
+   生成0-64的随机数N，用dna算法的payload生成这个位数的payload，将payload去替换新猫的前N位dna
