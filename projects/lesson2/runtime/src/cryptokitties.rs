@@ -1,71 +1,92 @@
-use codec::{Decode, Encode};
-use rstd::vec::Vec;
-// use rstd::cmp;
-use sp_runtime::traits::Hash;
-use support::{
-    decl_event, decl_module, decl_storage,
-    dispatch::Result,
-    ensure, print, StorageMap, StorageValue,traits::Randomness,
-};
+use support::{decl_storage, decl_module, ensure, traits::Randomness, decl_event};
 use system::ensure_signed;
+use codec::{Encode, Decode};
+
+//use crate::sp_api_hidden_includes_IMPL_RUNTIME_APIS::sp_api::HashT;
 
 pub trait Trait: balances::Trait {
-    type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+   // type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+   type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+
 }
-
-
-//Kitty struct
-#[cfg_attr(feature = "std", derive(Debug))]
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
-pub struct Kitty<Hash, Balance> {
-    id: u128,
-    dna: Hash,
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Kitty<Balance, Hash> {
+    id: Hash, 
+    dna: Hash, 
     price: Balance,
-    generation: u64,
-    sex: u8,
+    gen: u64
 }
 
-//storage
 decl_storage! {
-    trait Store for Module<T: Trait> as KittyModule {
-        //Kitty
-        pub KittyCount get(kitty_count):u128;
-        pub Kitties get(kittys):map u128=>Kitty<T::Hash,T::Balance>;
-        pub KittyOwner get(kitty_owner):map u128=>T::AccountId;
-        pub KittyHashIndex get(kitty_hash_index): map T::Hash => u128;
-        pub OwnerKittyCount get(owner_kitty_count):map T::AccountId=>u128;
-        pub OwnerKittyList get(owner_kitty_list):map (T::AccountId,u128)=>u128;
-        pub OwnerKittyIndex get(owner_kitty_index):map u128=>u128;
-        
-        pub FreeBalance get(free_balance):map T::AccountId=>T::Balance;
+    trait Store for Module<T: Trait> as KittyStorage {
+        Value: u64;
+        MyMap get(map_getter): map T::AccountId => u64;
+
+        Kitties: map T::Hash => Kitty<T::Balance, T::Hash>;
+        KittyOwner: map T::Hash => Option<T::AccountId>;
+
+        AllKittiesArray get(kitty_by_index): map u64 => T::Hash;
+        AllKittiesCount get(kitty_count): u64;
+        AllKittiesIndex : map T::Hash => u64;
+
+        OwnedKittiesArray: map (T::AccountId, u64) => T::Hash;
+        OwnedKittiesCount: map T::AccountId => u64;
+        OwnedKittiesIndex: map T::Hash => u64;
+
     }
 }
-//extrinsics call
+
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+
         fn deposit_event() = default;
-        //创建猫咪
-        pub fn create_kitty(origin,value:u64)->Result{
-            let account = ensure_signed(origin)?;
-            let dna = Self::kitty_dna(account);
-            print("create dna");
-            Ok(())
+
+        fn create_kitty(origin, balance: T::Balance) {
+            let sender = ensure_signed(origin)?;
+
+			let random_hash = <randomness_collective_flip::Module<T>>::random_seed();
+            
+            ensure!(!<KittyOwner<T>>::exists(random_hash), "Kitty already exists");
+
+            let my_zero_balance = balance;
+            let kitty = Kitty {
+                id: random_hash,
+                dna: random_hash,
+                price: my_zero_balance,
+                gen: 0
+            };
+
+            <Kitties<T>>::insert(random_hash, kitty);
+            <KittyOwner<T>>::insert(random_hash, &sender);
+
+            let kitty_count = Self::kitty_count();
+            let new_kitty_count = kitty_count.checked_add(1).ok_or("Overflow add one...")?;
+
+            <AllKittiesArray<T>>::insert(kitty_count, random_hash);
+            <AllKittiesCount>::put(new_kitty_count);
+            <AllKittiesIndex<T>>::insert(random_hash, kitty_count);
+
+            let owned_kitty_count = <OwnedKittiesCount<T>>::get(&sender);
+            let new_owned_kitty_count = owned_kitty_count.checked_add(1).ok_or("Overflow add one...")?;
+            
+            <OwnedKittiesArray<T>>::insert((&sender, owned_kitty_count), random_hash);
+            <OwnedKittiesCount<T>>::insert(&sender, new_owned_kitty_count);
+            <OwnedKittiesIndex<T>>::insert(random_hash, owned_kitty_count);
+
+            Self::deposit_event(RawEvent::Created(sender, random_hash));
         }
-        
     }
 }
 
-impl<T: Trait> Module<T> {
-    fn kitty_dna(owner: T::AccountId) -> T::Hash{
-        let random_hash = <randomness_collective_flip::Module<T>>::random_seed();
-        random_hash
+decl_event!(
+    pub enum Event<T>
+    where
+        <T as system::Trait>::AccountId,
+        <T as system::Trait>::Hash,
+        <T as balances::Trait>::Balance
+    {
+        Created(AccountId, Hash),
+        PriceSet(AccountId, Hash, Balance),
     }
-}
-decl_event! {
-    pub enum Event<T> where <T as balances::Trait>::Balance,<T as system::Trait>::AccountId,<T as system::Trait>::Hash{
-        Create(AccountId,Hash,u128),
-        Sell(AccountId,Hash,u128,Balance),
-        Transfered(AccountId,AccountId,Hash),
-        Buy(AccountId,AccountId,Hash,u128,Balance),
-    }
-}
+);
