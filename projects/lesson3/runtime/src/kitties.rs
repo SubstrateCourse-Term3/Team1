@@ -31,8 +31,9 @@ decl_module! {
 			let dna = payload.using_encoded(blake2_128);
 			let kitty = Kitty(dna);
 			let count = Self::kitties_count();
+			let new_count = count.checked_add(1).ok_or("Cannot add kitties any more, otherwise program will overflow.")?;
 			Kitties::insert(count, kitty);
-			KittiesCount::put(count + 1);
+			KittiesCount::put(new_count);
 		}
 	}
 }
