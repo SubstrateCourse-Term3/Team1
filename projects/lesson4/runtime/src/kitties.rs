@@ -59,6 +59,7 @@ decl_module! {
 
 			Self::do_breed(sender, kitty_id_1, kitty_id_2)?;
 		}
+		
 	}
 }
 
@@ -68,7 +69,18 @@ fn combine_dna(dna1: u8, dna2: u8, selector: u8) -> u8 {
 	// selector.map_bits(|bit, index| if (bit == 1) { dna1 & (1 << index) } else { dna2 & (1 << index) })
 	// 注意 map_bits这个方法不存在。只要能达到同样效果，不局限算法
 	// 测试数据：dna1 = 0b11110000, dna2 = 0b11001100, selector = 0b10101010, 返回值 0b11100100
-	return dna1;
+	
+	let mut result = 0;
+	let mut tmp;
+	for i in 0..8 {
+		if selector & (1 << i) == 1 {
+			tmp = dna1 & (1 << i);
+		} else {
+			tmp = dna2 & (1 << i);
+		}
+		result |= tmp;
+	}
+	return result;
 }
 
 impl<T: Trait> Module<T> {
