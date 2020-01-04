@@ -65,7 +65,10 @@ pub type DigestItem = generic::DigestItem<Hash>;
 
 /// Used for the module template in `./template.rs`
 mod template;
-mod substratekitties;
+
+/// Used for the module kitties in `./kitties.rs`
+mod kitties;
+
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -92,15 +95,15 @@ pub mod opaque {
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("lesson1"),
-	impl_name: create_runtime_str!("lesson1"),
+	spec_name: create_runtime_str!("substrate-kitties"),
+	impl_name: create_runtime_str!("substrate-kitties"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 };
 
-pub const MILLISECS_PER_BLOCK: u64 = 6000;
+pub const MILLISECS_PER_BLOCK: u64 = 2000;
 
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
@@ -236,10 +239,8 @@ impl template::Trait for Runtime {
 	type Event = Event;
 }
 
-impl substratekitties::Trait for Runtime {
-	type Event = Event;
+impl kitties::Trait for Runtime {
 }
-
 
 construct_runtime!(
 	pub enum Runtime where
@@ -258,10 +259,8 @@ construct_runtime!(
 		// Used for the module template in `./template.rs`
 		TemplateModule: template::{Module, Call, Storage, Event<T>},
 		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
-
-		Substratekitties: substratekitties::{Module, Call, Storage, Event<T>},
-
-	
+		// Substrate Kitties module
+		Kitties: kitties::{Module, Storage, Call},
 	}
 );
 
