@@ -19,10 +19,15 @@ decl_storage! {
 		/// Stores the total number of kitties. i.e. the next kitty index
 		pub KittiesCount get(fn kitties_count): T::KittyIndex;
 
+		// get kitty owner by kitty id
+		pub KittyOwner get(kitty_owner): map T::KittyIndex => T::AccountId;
+
 		/// Get kitty ID by account ID and user kitty index
 		pub OwnedKitties get(fn owned_kitties): map (T::AccountId, T::KittyIndex) => T::KittyIndex;
 		/// Get number of kitties by account ID
 		pub OwnedKittiesCount get(fn owned_kitties_count): map T::AccountId => T::KittyIndex;
+		//get owned kitty index by kitty id
+		pub OwnedKittyIndex get(fn owned_kitty_index): map T::KittyIndex =>  T::KittyIndex;
 	}
 }
 
@@ -50,13 +55,7 @@ decl_module! {
 
 			// Create and store kitty
 			let kitty = Kitty(dna);
-			<Kitties<T>>::insert(kitty_id, kitty);
-			<KittiesCount<T>>::put(kitty_id + 1.into());
-
-			// Store the ownership information
-			let user_kitties_id = Self::owned_kitties_count(&sender);
-			<OwnedKitties<T>>::insert((sender.clone(), user_kitties_id), kitty_id);
-			<OwnedKittiesCount<T>>::insert(sender, user_kitties_id + 1.into());
+			Self::insert_kitty(sender, kitty_id, kitty);
 		}
 
 		/// Breed kitties
@@ -65,6 +64,21 @@ decl_module! {
 
 			Self::do_breed(sender, kitty_id_1, kitty_id_2)?;
 		}
+
+		pub fn transfer(origin, kitty_id: T::KittyIndex, to: T::AccountId) {
+			let sender = ensure_signed(origin)?;
+			let kitty1 = Self::kitties(kitty_id);
+			ensure!(kitty1.is_some(), "This kitty is not exists.");
+
+			let owner = Self::kitty_owner(kitty_id);
+			ensure!( sender == owner , "You do not own this kitty.");
+
+			ensure!( sender != to , "You can not tranfer to yourself.");
+
+			Self::transfer_from(sender, kitty_id, to);
+
+		}
+		
 	}
 }
 
@@ -74,7 +88,18 @@ fn combine_dna(dna1: u8, dna2: u8, selector: u8) -> u8 {
 	// selector.map_bits(|bit, index| if (bit == 1) { dna1 & (1 << index) } else { dna2 & (1 << index) })
 	// 注意 map_bits这个方法不存在。只要能达到同样效果，不局限算法
 	// 测试数据：dna1 = 0b11110000, dna2 = 0b11001100, selector = 0b10101010, 返回值 0b11100100
-	return dna1;
+	
+	let mut result = 0;
+	let mut tmp;
+	for i in 0..8 {
+		if selector & (1 << i) == 1 {
+			tmp = dna1 & (1 << i);
+		} else {
+			tmp = dna2 & (1 << i);
+		}
+		result |= tmp;
+	}
+	return result;
 }
 
 impl<T: Trait> Module<T> {
@@ -97,14 +122,20 @@ impl<T: Trait> Module<T> {
 	}
 
 	fn insert_kitty(owner: T::AccountId, kitty_id: T::KittyIndex, kitty: Kitty) {
-		// Create and store kitty
-		<Kitties<T>>::insert(kitty_id, kitty);
-		<KittiesCount<T>>::put(kitty_id + 1.into());
-
+		// Create and store kitty if kitty do not exists
+		if !Self::kitties(kitty_id).is_some() {
+			<Kitties<T>>::insert(kitty_id, kitty);
+			<KittiesCount<T>>::put(kitty_id + 1.into());
+		}
+		
+		// Store the owner of kitty
+		<KittyOwner<T>>::insert(kitty_id, owner.clone());
 		// Store the ownership information
 		let user_kitties_id = Self::owned_kitties_count(owner.clone());
 		<OwnedKitties<T>>::insert((owner.clone(), user_kitties_id), kitty_id);
 		<OwnedKittiesCount<T>>::insert(owner, user_kitties_id + 1.into());
+		<OwnedKittyIndex<T>>::insert(kitty_id, user_kitties_id);
+
 	}
 
 	fn do_breed(sender: T::AccountId, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex) -> dispatch::Result {
@@ -130,6 +161,28 @@ impl<T: Trait> Module<T> {
 		}
 
 		Self::insert_kitty(sender, kitty_id, Kitty(new_dna));
+
+		Ok(())
+	}
+
+	fn transfer_from(from: T::AccountId, kitty_id: T::KittyIndex, to: T::AccountId) -> dispatch::Result {
+
+		let from_current_index = Self::owned_kitties_count(&from) - 1.into();
+		let owned_kitty_index = Self::owned_kitty_index(kitty_id);
+
+		let kitty = Self::kitties(kitty_id).unwrap();
+		//如果转移的小猫不是from的最后一只猫，则将from的最后一只猫与要转出的猫对调位置
+		if owned_kitty_index != from_current_index {
+			let last_from_kitty = Self::owned_kitties((&from, from_current_index));
+			<OwnedKitties<T>>::insert((&from, owned_kitty_index), last_from_kitty);
+			<OwnedKittyIndex<T>>::insert(last_from_kitty, owned_kitty_index);
+		}
+		//把猫插入到to账户
+		Self::insert_kitty(to, kitty_id, kitty);
+
+		//更新from账户相关数据
+		<OwnedKittiesCount<T>>::insert(&from, from_current_index);
+		<OwnedKitties<T>>::remove((from, from_current_index));
 
 		Ok(())
 	}
