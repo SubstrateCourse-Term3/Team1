@@ -30,6 +30,3 @@ init: toolchain submodule build-wasm
 
 submodule:
 	git submodule update --init --recursive
-
-upgrade:
-	WASM_TARGET_DIRECTORY=/Users/lifanglin/Documents/materials/polkadot/online_substrate/Team1/projects/lesson4 WASM_BUILD_TYPE=release cargo build
