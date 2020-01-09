@@ -250,11 +250,45 @@ mod tests {
 		type MaximumBlockLength = MaximumBlockLength;
 		type AvailableBlockRatio = AvailableBlockRatio;
 		type Version = ();
+		//type Event = Event;
 	}
+	
+	parameter_types! {
+		pub const ExistentialDeposit: u64 = 0;
+		pub const TransferFee: u64 = 0;
+		pub const CreationFee: u64 = 0;
+	}
+
+	impl balances::Trait for Test {
+		type Balance = u64;
+		type OnFreeBalanceZero = ();
+		type OnNewAccount = ();
+		type Event = ();
+		type TransferPayment = ();
+		type DustRemoval = ();
+		type ExistentialDeposit = ExistentialDeposit;
+		type TransferFee = TransferFee;
+		type CreationFee = CreationFee;
+	}
+
+	parameter_types! {
+		pub const MultisigDepositBase: u64 = 1;
+		pub const MultisigDepositFactor: u64 = 1;
+		pub const MaxSignatories: u16 = 3;
+	}
+
 	impl Trait for Test {
 		type KittyIndex = u32;
+		type Currency = Balances;
+		type Randomness = randomness_collective_flip::Module<Self>;
+		type Event = ();
+
 	}
-	type OwnedKittiesTest = OwnedKitties<Test>;
+	type Balances = balances::Module<Test>;
+
+	type OwnedKittiesTest = OwnedKittiesList<Test>;
+	type KittyLinkedItemTest = KittyLinkedItem<Test>;
+
 
 	// This function basically just builds a genesis storage key/value store according to
 	// our desired mockup.
@@ -267,54 +301,54 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			OwnedKittiesTest::append(&0, 1);
 
-			assert_eq!(OwnedKittiesTest::get(&(0, None)), Some(KittyLinkedItem {
+			assert_eq!(OwnedKittiesTest::read(&0, None), KittyLinkedItemTest {
  				prev: Some(1),
  				next: Some(1),
- 			}));
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(1))), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(1)), KittyLinkedItemTest {
  				prev: None,
  				next: None,
- 			}));
+ 			});
 
 			OwnedKittiesTest::append(&0, 2);
 
-			assert_eq!(OwnedKittiesTest::get(&(0, None)), Some(KittyLinkedItem {
+			assert_eq!(OwnedKittiesTest::read(&0, None), KittyLinkedItemTest {
  				prev: Some(2),
  				next: Some(1),
- 			}));
-
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(1))), Some(KittyLinkedItem {
+ 			});
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(1)), KittyLinkedItemTest {
  				prev: None,
  				next: Some(2),
- 			}));
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(2))), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(2)), KittyLinkedItemTest {
  				prev: Some(1),
  				next: None,
- 			}));
+ 			});
 
 			OwnedKittiesTest::append(&0, 3);
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, None)), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, None), KittyLinkedItemTest {
  				prev: Some(3),
  				next: Some(1),
- 			}));
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(1))), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(1)), KittyLinkedItemTest {
  				prev: None,
  				next: Some(2),
- 			}));
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(2))), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(2)), KittyLinkedItemTest {
  				prev: Some(1),
  				next: Some(3),
- 			}));
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(3))), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(3)), KittyLinkedItemTest {
  				prev: Some(2),
  				next: None,
- 			}));
+ 			});
+  			
 		});
 	}
 
@@ -327,51 +361,69 @@ mod tests {
 
 			OwnedKittiesTest::remove(&0, 2);
 
-			assert_eq!(OwnedKittiesTest::get(&(0, None)), Some(KittyLinkedItem {
+			assert_eq!(OwnedKittiesTest::read(&0, None), KittyLinkedItemTest {
  				prev: Some(3),
  				next: Some(1),
- 			}));
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(1))), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(1)), KittyLinkedItemTest {
  				prev: None,
  				next: Some(3),
- 			}));
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(2))), None);
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(2)), KittyLinkedItemTest {
+ 				prev: None,
+ 				next: None,
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(3))), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(3)), KittyLinkedItemTest {
  				prev: Some(1),
  				next: None,
- 			}));
+ 			});
 
 			OwnedKittiesTest::remove(&0, 1);
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, None)), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, None), KittyLinkedItemTest {
  				prev: Some(3),
  				next: Some(3),
- 			}));
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(1))), None);
-
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(2))), None);
-
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(3))), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(1)), KittyLinkedItemTest {
  				prev: None,
  				next: None,
- 			}));
+ 			});
+
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(2)), KittyLinkedItemTest {
+ 				prev: None,
+ 				next: None,
+ 			});
+
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(3)), KittyLinkedItemTest {
+ 				prev: None,
+ 				next: None,
+ 			});
 
 			OwnedKittiesTest::remove(&0, 3);
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, None)), Some(KittyLinkedItem {
+  			assert_eq!(OwnedKittiesTest::read(&0, None), KittyLinkedItemTest {
  				prev: None,
  				next: None,
- 			}));
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(1))), None);
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(1)), KittyLinkedItemTest {
+ 				prev: None,
+ 				next: None,
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(2))), None);
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(2)), KittyLinkedItemTest {
+ 				prev: None,
+ 				next: None,
+ 			});
 
-  			assert_eq!(OwnedKittiesTest::get(&(0, Some(2))), None);
+  			assert_eq!(OwnedKittiesTest::read(&0, Some(2)), KittyLinkedItemTest {
+ 				prev: None,
+ 				next: None,
+ 			});
 		});
 	}
 }
